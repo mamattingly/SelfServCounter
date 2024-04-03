@@ -7,11 +7,24 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        clientsClaim: true,
-        skipWaiting: true
-      }
+      registerType: "autoUpdate",
+      manifest: {
+        name: "Mike's Password Generator",
+        short_name: "Mike's Password Generator",
+        theme_color: "#000000",
+        icons: [
+          {
+            src: "/favicon.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/favicon.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
+      },
     }),
   ],
 });
