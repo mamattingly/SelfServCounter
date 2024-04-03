@@ -7,14 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      manifest: {
-        icons: [{
-          src: "/icons/512.png",
-          size: "512",
-          type: "image/png",
-          purpose: "any maskable",
-        }],
-      },
+      registerType: 'autoUpdate',
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true
+      }
     }),
   ],
 });
