@@ -8,12 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       manifest: {
-        icons: {
+        icons: [{
           src: "/icons/512.png",
           size: "512",
           type: "image/png",
           purpose: "any maskable",
-        },
+        }],
       },
     }),
   ],
