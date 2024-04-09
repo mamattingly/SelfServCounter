@@ -222,7 +222,7 @@ export default function App() {
       </div>
       <div className="password">
         <h2>Password</h2>
-        <p>{password} </p>
+        <p className="password-text">{password} </p>
         <a onClick={handleCopyPassword}>Copy</a>
         <br />
         <br />
