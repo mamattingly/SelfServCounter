@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import "./App.css"
 
 const namesArray = [
   "Mike",
@@ -78,12 +77,12 @@ export default function App() {
         {names.map((item, index) => (
           <div key={index} className="name-item">
             <span>{item.name}</span>
-              <span>{item.counter}</span>
             <div className="counter-controls">
+              <span>{item.counter}</span>
               <button onClick={() => handleIncrementCounter(index)}>+</button>
               <button onClick={() => handleDecrementCounter(index)}>-</button>
-            <button onClick={() => handleDeleteName(index)}>Delete</button>
             </div>
+            <button onClick={() => handleDeleteName(index)}>Delete</button>
           </div>
         ))}
       </div>
