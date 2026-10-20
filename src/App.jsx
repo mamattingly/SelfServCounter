@@ -3,30 +3,15 @@ import "./App.css"
 
 const namesArray = [
   "Mike",
-  "Alejandro",
-  "Peter",
-  "Hendry",
-  "Katlego",
-  "Winston",
-  "Bonolo",
-  "Namhla",
-  "Joss",
-  "Ruth",
-  "Nanga",
-  "Scelo",
-  "Sabelo",
-  "Jay",
-  "Orlando",
-  "Daniel",
-  "Andy",
-  "Danny",
-  "Matt W",
+  "Amir",
   "Shivani",
-  "Sarah",
-  "Richard",
-  "Sydney",
-  "Heiler",
-  "Brett"
+  "Todd",
+  "John",
+  "Dede",
+  "Jay",
+  "Danny",
+  "Orlando",
+  "Patricia"
 ];
 
 export default function App() {
