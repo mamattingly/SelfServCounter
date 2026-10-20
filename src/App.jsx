@@ -12,7 +12,9 @@ const namesArray = [
   "Danny",
   "Orlando",
   "Patricia",
-  "Vandermeer"
+  "Vandermeer",
+  "Jett",
+  "Desmond"
 ];
 
 export default function App() {
