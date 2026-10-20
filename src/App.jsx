@@ -11,7 +11,8 @@ const namesArray = [
   "Jay",
   "Danny",
   "Orlando",
-  "Patricia"
+  "Patricia",
+  "Vandermeer"
 ];
 
 export default function App() {
