@@ -54,7 +54,16 @@ function downloadExample() {
 }
 
 export default function App() {
-  const [names, setNames] = useState(loadSavedPeople);
+  const [names, setNames] = useState([]);
+  const [authUser, setAuthUser] = useState(undefined);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [userAdminOpen, setUserAdminOpen] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountPassword, setAccountPassword] = useState("");
+  const [accountRole, setAccountRole] = useState("viewer");
   const [nameInput, setNameInput] = useState("");
   const [search, setSearch] = useState("");
   const [notice, setNotice] = useState({ type: "", text: "" });
@@ -66,10 +75,42 @@ export default function App() {
     try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(dashboardLayout)); } catch { /* Optional layout persistence. */ }
   }, [dashboardLayout]);
 
+  const api = async (url, options = {}) => {
+    const response = await fetch(url, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Request failed.");
+    return data;
+  };
+  const refreshPeople = async () => { const data = await api("/api/people"); setNames(data.people); };
+  const performAction = async (action) => {
+    try { const data = await api("/api/people/actions", { method: "POST", body: JSON.stringify(action) }); setNames(data.people); }
+    catch (error) { setNotice({ type: "error", text: error.message }); }
+  };
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(names)); }
-    catch { setNotice({ type: "error", text: "Browser storage is unavailable. Changes may not persist after you leave this page." }); }
-  }, [names]);
+    let active = true;
+    api("/api/session").then(({ user }) => {
+      if (!active) return;
+      setAuthUser(user || null);
+      if (user) refreshPeople().catch(error => setNotice({ type: "error", text: error.message }));
+    }).catch(() => { if (active) setAuthUser(null); });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    if (!authUser) return undefined;
+    let socket, retryTimer, closed = false;
+    const connect = () => {
+      if (closed) return;
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      socket = new WebSocket(protocol + "//" + window.location.host + "/ws");
+      socket.onmessage = event => { try { const message = JSON.parse(event.data); if (message.type === "people") setNames(message.people); } catch {} };
+      socket.onclose = () => { if (!closed) retryTimer = window.setTimeout(() => { refreshPeople().catch(()=>{}); connect(); }, 2000); };
+    };
+    connect();
+    return () => { closed = true; window.clearTimeout(retryTimer); socket?.close(); };
+  }, [authUser?.id]);
+  useEffect(() => {
+    if (userAdminOpen && authUser?.role === "admin") api("/api/users").then(data => setAccounts(data.users)).catch(error => setNotice({ type: "error", text: error.message }));
+  }, [userAdminOpen, authUser?.role]);
 
   const total = useMemo(() => names.reduce((sum, person) => sum + person.counter, 0), [names]);
   const copyTeamsTotals = async () => {
