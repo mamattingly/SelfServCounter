@@ -185,3 +185,28 @@ body { background: radial-gradient(ellipse at 50% -15%, #29253b 0, #111321 48rem
 .teams-share-card { border-color:#4a3546; background:linear-gradient(145deg,#1b1b2b,#211a27); }
 .share-copy-hint { margin:0; color:#a9a3b2; font-size:11px; line-height:1.5; }
 .teams-copy-button { margin-top:4px; }
+
+/* Overview pie chart */
+.overview-chart-panel { display:grid; grid-template-columns:minmax(180px, .8fr) minmax(0, 1.6fr); align-items:center; gap:22px; margin-top:16px; padding:18px 20px; border:1px solid #393044; border-radius:14px; background:linear-gradient(145deg,#191925,#151520); }
+.overview-chart-panel h3 { margin:0 0 5px; color:#f0edf4; font-size:16px; }
+.chart-description { margin:0; color:#a9a3b2; font-size:12px; line-height:1.6; }
+.pie-chart-layout { display:grid; grid-template-columns:minmax(130px, 180px) minmax(0,1fr); align-items:center; gap:22px; min-width:0; }
+.pie-chart { display:grid; place-items:center; width:min(100%,180px); aspect-ratio:1; border-radius:50%; box-shadow:0 5px 22px #0003; }
+.pie-chart-hole { display:flex; align-items:center; justify-content:center; flex-direction:column; width:54%; aspect-ratio:1; border-radius:50%; background:#171520; border:1px solid #413342; }
+.pie-chart-hole strong { color:#f6edf4; font-size:clamp(18px,2vw,25px); font-variant-numeric:tabular-nums; }
+.pie-chart-hole span { color:#aaa0b0; font-size:11px; }
+.chart-legend { display:flex; flex-direction:column; gap:7px; max-height:230px; overflow:auto; padding:0; margin:0; list-style:none; }
+.chart-legend li { display:grid; grid-template-columns:9px minmax(0,1fr) auto auto; align-items:center; gap:8px; color:#d7d1dc; font-size:11px; }
+.legend-dot { width:8px; height:8px; border-radius:50%; }
+.legend-name { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.chart-legend strong { color:#f1eaf2; font-variant-numeric:tabular-nums; }
+.legend-percent { min-width:43px; color:#aaa0b0; text-align:right; font-variant-numeric:tabular-nums; }
+.chart-empty { margin:0; padding:24px; border:1px dashed #4a3a4a; border-radius:10px; color:#aaa0b0; text-align:center; font-size:12px; }
+.hidden-sections { margin-top:24px; margin-bottom:18px; }
+@media (max-width:640px) {
+ .overview-chart-panel { grid-template-columns:1fr; gap:15px; padding:15px; }
+ .pie-chart-layout { grid-template-columns:110px minmax(0,1fr); gap:14px; }
+ .pie-chart-hole strong { font-size:17px; }
+ .chart-legend { max-height:190px; }
+ .chart-legend li { gap:5px; font-size:10px; }
+}
