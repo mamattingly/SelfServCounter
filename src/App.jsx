@@ -175,9 +175,9 @@ export default function App() {
       <div className="dashboard-intro"><div><p className="eyebrow">YOUR WORKSPACE</p><h2>Dashboard</h2><p>Use the arrows to rearrange sections and collapse anything you don't need right now. Your layout is saved in this browser.</p></div><button className="button button-secondary reset-layout" type="button" onClick={() => setDashboardLayout({ order: SECTION_IDS, collapsed: {}, hidden: {} })}>Reset layout</button></div>
 
       <div className="dashboard-sections" aria-label="Dashboard sections">{dashboardLayout.order.filter((id) => !dashboardLayout.hidden[id]).map((id) => sections[id])}</div>
-      {SECTION_IDS.some((id) => dashboardLayout.hidden[id]) && <div className="hidden-sections" aria-label="Hidden dashboard sections"><strong>Hidden sections</strong><span>Restore any section when you need it.</span>{SECTION_IDS.filter((id) => dashboardLayout.hidden[id]).map((id) => <button className="section-tool restore-section" key={id} type="button" onClick={() => toggleHidden(id)}>＋ Show {SECTION_LABELS[id]}</button>)}</div>}
       {notice.text && <div className={`notice notice-${notice.type || "success"}`} role="status">{notice.text}</div>}
       <footer className="page-footer">SelfServ Counter <span>·</span> Your list stays in this browser, not on a server.</footer>
+      {SECTION_IDS.some((id) => dashboardLayout.hidden[id]) && <div className="hidden-sections" aria-label="Hidden dashboard sections"><strong>Hidden sections</strong><span>Restore any section when you need it.</span>{SECTION_IDS.filter((id) => dashboardLayout.hidden[id]).map((id) => <button className="section-tool restore-section" key={id} type="button" onClick={() => toggleHidden(id)}>＋ Show {SECTION_LABELS[id]}</button>)}</div>}
     </main>
   );
 }
