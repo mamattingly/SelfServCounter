@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 
 const STORAGE_KEY = "selfServCounter.people.v1";
+const LAYOUT_KEY = "selfServCounter.dashboardLayout.v1";
+const SECTION_IDS = ["stats", "import", "people"];
+function loadLayout() { try { const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}"); const order = Array.isArray(saved.order) ? saved.order.filter((id) => SECTION_IDS.includes(id)) : []; return { order: [...order, ...SECTION_IDS.filter((id) => !order.includes(id))], collapsed: saved.collapsed || {} }; } catch { return { order: SECTION_IDS, collapsed: {} }; } }
 const defaultNames = ["Mike", "Amir", "Shivani", "Todd", "John", "Dede", "Jay", "Danny", "Orlando", "Patricia", "Vandermeer", "Jett", "Desmond"];
 const defaults = defaultNames.map((name) => ({ name, counter: 0 }));
 
@@ -55,6 +58,11 @@ export default function App() {
   const [notice, setNotice] = useState({ type: "", text: "" });
   const [busy, setBusy] = useState(false);
   const fileInput = useRef(null);
+  const [dashboardLayout, setDashboardLayout] = useState(loadLayout);
+
+  useEffect(() => {
+    try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(dashboardLayout)); } catch { /* Optional layout persistence. */ }
+  }, [dashboardLayout]);
 
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(names)); }
@@ -62,6 +70,9 @@ export default function App() {
   }, [names]);
 
   const total = useMemo(() => names.reduce((sum, person) => sum + person.counter, 0), [names]);
+  const toggleSection = (id) => setDashboardLayout((current) => ({ ...current, collapsed: { ...current.collapsed, [id]: !current.collapsed[id] } }));
+  const moveSection = (id, delta) => setDashboardLayout((current) => { const order = [...current.order]; const from = order.indexOf(id); const to = Math.max(0, Math.min(order.length - 1, from + delta)); order.splice(from, 1); order.splice(to, 0, id); return { ...current, order }; });
+  const sectionTools = (id, label) => <div className="section-tools"><button className="section-tool" type="button" aria-label={`Move ${label} up`} title="Move section up" disabled={dashboardLayout.order.indexOf(id) === 0} onClick={() => moveSection(id, -1)}>↑</button><button className="section-tool" type="button" aria-label={`Move ${label} down`} title="Move section down" disabled={dashboardLayout.order.indexOf(id) === SECTION_IDS.length - 1} onClick={() => moveSection(id, 1)}>↓</button><button className="section-tool" type="button" aria-expanded={!dashboardLayout.collapsed[id]} onClick={() => toggleSection(id)}>{dashboardLayout.collapsed[id] ? "＋ Expand" : "− Collapse"}</button></div>;
   const filteredNames = useMemo(() => names.filter((person) => person.name.toLowerCase().includes(search.trim().toLowerCase())), [names, search]);
 
   const handleAddName = () => {
@@ -133,80 +144,20 @@ export default function App() {
     }
   };
 
+  const sections = {
+    stats: <section className="dashboard-section" key="stats"><div className="dashboard-section-header"><div><p className="eyebrow">AT A GLANCE</p><h2>Overview</h2></div>{sectionTools("stats", "Overview")}</div>{!dashboardLayout.collapsed.stats && <div className="stats-row"><div className="stat-card"><span className="stat-label">People on list</span><strong>{names.length}</strong></div><div className="stat-card"><span className="stat-label">Combined count</span><strong>{total.toLocaleString()}</strong></div><div className="stat-card"><span className="stat-label">Storage</span><strong className="storage-value">Local device</strong></div></div>}</section>,
+    import: <section className="dashboard-section panel import-panel" key="import"><div className="dashboard-section-header"><div><p className="eyebrow">BULK UPDATE</p><h2>Import users from CSV</h2></div>{sectionTools("import", "CSV import")}</div>{!dashboardLayout.collapsed.import && <div className="section-content"><div className="section-heading"><p className="help-copy">Upload a CSV to replace the displayed list with its users. Existing counts are kept for matching names if you leave out the Count column. If Count is included, those values update the counts. Anyone not in the CSV is removed.</p><button className="button button-secondary" onClick={downloadExample} type="button">Download example CSV</button></div><div className="upload-row"><label className="file-picker"><span aria-hidden="true">↑</span> {busy ? "Reading CSV…" : "Choose CSV file"}<input ref={fileInput} type="file" accept=".csv,text/csv" onChange={handleImport} disabled={busy} /></label><span className="file-hint">.csv files only · Nothing is uploaded to a server</span></div><details className="csv-help"><summary>How should I format the CSV?</summary><div className="help-details"><p><strong>Required:</strong> a header row with a <code>Name</code> column. Optional count headers: <code>Count</code>, <code>Counter</code>, or <code>Total</code>.</p><pre>{'Name,Count
+Alice,12
+Bob,7
+Charlie,3'}</pre><ul><li>Save the spreadsheet as <strong>CSV UTF-8 (Comma delimited)</strong>.</li><li>Each person should appear once; duplicate names are rejected.</li><li>Counts must be whole numbers of zero or greater.</li><li>Names match case-insensitively when keeping existing counts.</li><li>Review the list before importing: the CSV becomes the full list.</li></ul></div></details></div>}</section>,
+    people: <section className="dashboard-section panel people-panel" key="people"><div className="dashboard-section-header"><div><p className="eyebrow">YOUR LIST</p><h2>People <span className="count-pill">{names.length}</span></h2></div>{sectionTools("people", "People")}</div>{!dashboardLayout.collapsed.people && <div className="section-content"><div className="people-toolbar"><div className="search-wrap"><span aria-hidden="true">⌕</span><input aria-label="Search people" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names…" /></div></div><form className="add-form" onSubmit={(event) => { event.preventDefault(); handleAddName(); }}><input aria-label="New person's name" value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Enter a person's name…" maxLength={100} /><button className="button button-primary" type="submit">+ Add person</button></form>{filteredNames.length === 0 ? <div className="empty-state"><span aria-hidden="true">◎</span><h3>{names.length ? "No matching people" : "Your list is empty"}</h3><p>{names.length ? "Try a different search." : "Add a person above or import a CSV to get started."}</p></div> : <div className="people-grid">{filteredNames.map((person) => { const index = names.indexOf(person); return <article className="person-card" key={person.name.toLowerCase()}><div className="person-top"><div className="avatar">{person.name.trim().charAt(0).toUpperCase()}</div><div className="person-name" title={person.name}>{person.name}</div><button className="icon-button delete-button" aria-label={`Delete ${person.name}`} title="Remove person" onClick={() => deletePerson(index)} type="button">×</button></div><div className="counter-display"><span>Current count</span><strong>{person.counter.toLocaleString()}</strong></div><div className="counter-controls"><button className="counter-button decrement" aria-label={`Decrease ${person.name} count`} onClick={() => changeCounter(index, -1)} disabled={person.counter === 0} type="button">−</button><button className="counter-button increment" aria-label={`Increase ${person.name} count`} onClick={() => changeCounter(index, 1)} type="button">+</button></div></article>; })}</div>}<div className="list-footer"><span>Changes save automatically in this browser.</span><button className="text-button" type="button" onClick={resetCounts}>Reset all counts</button></div></div>}</section>
+  };
   return (
     <main className="app-shell">
-      <header className="page-header">
-        <div className="brand-mark" aria-hidden="true">SC</div>
-        <div className="heading-copy">
-          <p className="eyebrow">SIMPLE · LOCAL · PRIVATE</p>
-          <h1>SelfServ <span>Counter</span></h1>
-          <p className="subtitle">Keep track of people and their counts in one place.</p>
-        </div>
-        <div className="saved-indicator"><span className="status-dot" /> Saved in this browser</div>
-      </header>
-
-      <section className="stats-row" aria-label="List summary">
-        <div className="stat-card"><span className="stat-label">People on list</span><strong>{names.length}</strong></div>
-        <div className="stat-card"><span className="stat-label">Combined count</span><strong>{total.toLocaleString()}</strong></div>
-        <div className="stat-card"><span className="stat-label">Storage</span><strong className="storage-value">Local device</strong></div>
-      </section>
-
-      <section className="panel import-panel">
-        <div className="section-heading">
-          <div><p className="eyebrow">BULK UPDATE</p><h2>Import users from CSV</h2></div>
-          <button className="button button-secondary" onClick={downloadExample} type="button">Download example CSV</button>
-        </div>
-        <p className="help-copy">Upload a CSV to replace the displayed list with its users. Existing counts are kept for matching names if you leave out the Count column. If Count is included, those values update the counts. Anyone not in the CSV is removed.</p>
-        <div className="upload-row">
-          <label className="file-picker">
-            <span aria-hidden="true">↑</span> {busy ? "Reading CSV…" : "Choose CSV file"}
-            <input ref={fileInput} type="file" accept=".csv,text/csv" onChange={handleImport} disabled={busy} />
-          </label>
-          <span className="file-hint">.csv files only · Nothing is uploaded to a server</span>
-        </div>
-        <details className="csv-help">
-          <summary>How should I format the CSV?</summary>
-          <div className="help-details">
-            <p><strong>Required:</strong> a header row with a <code>Name</code> column. Optional count headers: <code>Count</code>, <code>Counter</code>, or <code>Total</code>.</p>
-            <pre>{'Name,Count\nAlice,12\nBob,7\nCharlie,3'}</pre>
-            <ul>
-              <li>Save the spreadsheet as <strong>CSV UTF-8 (Comma delimited)</strong>.</li>
-              <li>Each person should appear once; duplicate names are rejected.</li>
-              <li>Counts must be whole numbers of zero or greater.</li>
-              <li>Names match case-insensitively when keeping existing counts (for example, “Alice” and “ALICE”).</li>
-              <li>Review the list before importing: the CSV becomes the full list.</li>
-            </ul>
-          </div>
-        </details>
-      </section>
-
+      <header className="page-header"><div className="brand-mark" aria-hidden="true">SC</div><div className="heading-copy"><p className="eyebrow">SIMPLE · LOCAL · PRIVATE</p><h1>SelfServ <span>Counter</span></h1><p className="subtitle">Keep track of people and their counts in one place.</p></div><div className="saved-indicator"><span className="status-dot" /> Saved in this browser</div></header>
+      <div className="dashboard-intro"><div><p className="eyebrow">YOUR WORKSPACE</p><h2>Dashboard</h2><p>Use the arrows to rearrange sections and collapse anything you don't need right now. Your layout is saved in this browser.</p></div><button className="button button-secondary reset-layout" type="button" onClick={() => setDashboardLayout({ order: SECTION_IDS, collapsed: {} })}>Reset layout</button></div>
+      <div className="dashboard-sections" aria-label="Dashboard sections">{dashboardLayout.order.map((id) => sections[id])}</div>
       {notice.text && <div className={`notice notice-${notice.type || "success"}`} role="status">{notice.text}</div>}
-
-      <section className="panel people-panel">
-        <div className="section-heading people-heading">
-          <div><p className="eyebrow">YOUR LIST</p><h2>People <span className="count-pill">{names.length}</span></h2></div>
-          <div className="search-wrap"><span aria-hidden="true">⌕</span><input aria-label="Search people" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names…" /></div>
-        </div>
-        <form className="add-form" onSubmit={(event) => { event.preventDefault(); handleAddName(); }}>
-          <input aria-label="New person's name" value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Enter a person's name…" maxLength={100} />
-          <button className="button button-primary" type="submit">+ Add person</button>
-        </form>
-        {filteredNames.length === 0 ? (
-          <div className="empty-state"><span aria-hidden="true">◎</span><h3>{names.length ? "No matching people" : "Your list is empty"}</h3><p>{names.length ? "Try a different search." : "Add a person above or import a CSV to get started."}</p></div>
-        ) : (
-          <div className="people-grid">
-            {filteredNames.map((person) => {
-              const index = names.indexOf(person);
-              return <article className="person-card" key={person.name.toLowerCase()}>
-                <div className="person-top"><div className="avatar">{person.name.trim().charAt(0).toUpperCase()}</div><div className="person-name" title={person.name}>{person.name}</div><button className="icon-button delete-button" aria-label={`Delete ${person.name}`} title="Remove person" onClick={() => deletePerson(index)} type="button">×</button></div>
-                <div className="counter-display"><span>Current count</span><strong>{person.counter.toLocaleString()}</strong></div>
-                <div className="counter-controls"><button className="counter-button decrement" aria-label={`Decrease ${person.name} count`} onClick={() => changeCounter(index, -1)} disabled={person.counter === 0} type="button">−</button><button className="counter-button increment" aria-label={`Increase ${person.name} count`} onClick={() => changeCounter(index, 1)} type="button">+</button></div>
-              </article>;
-            })}
-          </div>
-        )}
-        <div className="list-footer"><span>Changes save automatically in this browser.</span><button className="text-button" type="button" onClick={resetCounts}>Reset all counts</button></div>
-      </section>
       <footer className="page-footer">SelfServ Counter <span>·</span> Your list stays in this browser, not on a server.</footer>
     </main>
   );
