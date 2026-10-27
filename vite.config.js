@@ -17,14 +17,14 @@ export default defineConfig({
         display: "standalone",
         icons: [
           {
-            src: "/favicon.png",
-            sizes: "192x192",
-            type: "image/png",
+            src: "/favicon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
           },
           {
-            src: "/favicon.png",
-            sizes: "512x512",
-            type: "image/png",
+            src: "/favicon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
           },
         ],
       },
