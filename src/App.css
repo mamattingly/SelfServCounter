@@ -210,3 +210,13 @@ body { background: radial-gradient(ellipse at 50% -15%, #29253b 0, #111321 48rem
  .chart-legend { max-height:190px; }
  .chart-legend li { gap:5px; font-size:10px; }
 }
+
+
+/* Keep the distribution chart full-width and make its legend easy to scan. */
+.dashboard-section > .stats-row > .overview-chart-panel { grid-column: 1 / -1; }
+.chart-legend { min-width: 0; }
+.chart-legend li { min-height: 22px; padding: 2px 0; }
+.legend-dot { flex: 0 0 8px; box-shadow: 0 0 0 2px #ffffff0a; }
+@media (max-width:640px) {
+  .dashboard-section > .stats-row > .overview-chart-panel { grid-column: 1 / -1; }
+}
