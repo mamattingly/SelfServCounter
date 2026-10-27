@@ -20,7 +20,8 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 1000 * 60 * 60 * 12 },
 });
-app.set("trust proxy", 1);\napp.use(express.json({ limit: "1mb" }));
+app.set("trust proxy", 1);
+app.use(express.json({ limit: "1mb" }));
 app.use(sessionMiddleware);
 app.use((req, res, next) => { res.setHeader("X-Content-Type-Options", "nosniff"); res.setHeader("X-Frame-Options", "DENY"); res.setHeader("Referrer-Policy", "same-origin"); next(); });
 
@@ -168,6 +169,7 @@ app.delete("/api/users/:id", requireAuth, requireAdmin, async (req,res) => {
   if (id === Number(req.user.id)) return res.status(400).json({ error: "You cannot delete your own account." });
   const { rowCount } = await pool.query("DELETE FROM app_users WHERE id=$1", [id]);
   if (!rowCount) return res.status(404).json({ error: "Account not found." });
+  for (const [stream, userId] of eventClients) if (userId === id) { stream.end(); eventClients.delete(stream); }
   res.json({ ok: true });
 });
 
