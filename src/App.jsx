@@ -1,80 +1,213 @@
-import { useState, useEffect } from "react";
-import "./App.css"
+import { useEffect, useMemo, useRef, useState } from "react";
+import "./App.css";
 
-const namesArray = [
-  "Mike",
-  "Amir",
-  "Shivani",
-  "Todd",
-  "John",
-  "Dede",
-  "Jay",
-  "Danny",
-  "Orlando",
-  "Patricia",
-  "Vandermeer",
-  "Jett",
-  "Desmond"
-];
+const STORAGE_KEY = "selfServCounter.people.v1";
+const defaultNames = ["Mike", "Amir", "Shivani", "Todd", "John", "Dede", "Jay", "Danny", "Orlando", "Patricia", "Vandermeer", "Jett", "Desmond"];
+const defaults = defaultNames.map((name) => ({ name, counter: 0 }));
+
+function loadSavedPeople() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === null) return defaults;
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return defaults;
+    return parsed.filter((person) => person && typeof person.name === "string")
+      .map((person) => ({ name: person.name, counter: Number.isFinite(Number(person.counter)) ? Math.max(0, Math.floor(Number(person.counter))) : 0 }));
+  } catch {
+    return defaults;
+  }
+}
+
+// Small CSV parser supporting quoted fields, commas inside quotes, and escaped quotes.
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = "", quoted = false;
+  const input = text.replace(/^\uFEFF/, "");
+  for (let i = 0; i < input.length; i += 1) {
+    const char = input[i];
+    if (quoted) {
+      if (char === '"' && input[i + 1] === '"') { field += '"'; i += 1; }
+      else if (char === '"') quoted = false;
+      else field += char;
+    } else if (char === '"' && field.length === 0) quoted = true;
+    else if (char === ",") { row.push(field.trim()); field = ""; }
+    else if (char === "\n") { row.push(field.trim().replace(/\r$/, "")); if (row.some((cell) => cell !== "")) rows.push(row); row = []; field = ""; }
+    else field += char;
+  }
+  row.push(field.trim().replace(/\r$/, ""));
+  if (row.some((cell) => cell !== "")) rows.push(row);
+  if (quoted) throw new Error("The CSV has a quotation mark that was never closed.");
+  return rows;
+}
+
+function downloadExample() {
+  const csv = "Name,Count\nAlice,12\nBob,7\nCharlie,3\n";
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = "selfservcounter-users-example.csv"; link.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function App() {
-  const [names, setNames] = useState([]);
+  const [names, setNames] = useState(loadSavedPeople);
   const [nameInput, setNameInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [notice, setNotice] = useState({ type: "", text: "" });
+  const [busy, setBusy] = useState(false);
+  const fileInput = useRef(null);
 
   useEffect(() => {
-    const initialNames = namesArray.map(name => ({ name, counter: 0 }));
-    setNames(initialNames);
-  }, []);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(names)); }
+    catch { setNotice({ type: "error", text: "Browser storage is unavailable. Changes may not persist after you leave this page." }); }
+  }, [names]);
+
+  const total = useMemo(() => names.reduce((sum, person) => sum + person.counter, 0), [names]);
+  const filteredNames = useMemo(() => names.filter((person) => person.name.toLowerCase().includes(search.trim().toLowerCase())), [names, search]);
 
   const handleAddName = () => {
-    if (nameInput.trim()) {
-      setNames([...names, { name: nameInput, counter: 0 }]);
-      setNameInput("");
+    const name = nameInput.trim();
+    if (!name) return;
+    if (names.some((person) => person.name.toLowerCase() === name.toLowerCase())) {
+      setNotice({ type: "error", text: "That name is already on the list." }); return;
+    }
+    setNames((current) => [...current, { name, counter: 0 }]);
+    setNameInput("");
+    setNotice({ type: "success", text: `Added ${name}.` });
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setBusy(true); setNotice({ type: "", text: "" });
+    try {
+      const rows = parseCSV(await file.text());
+      if (rows.length < 2) throw new Error("The CSV needs a header row and at least one user.");
+      const headers = rows[0].map((cell) => cell.trim().toLowerCase());
+      const nameIndex = headers.findIndex((header) => ["name", "person", "user", "username"].includes(header));
+      const countIndex = headers.findIndex((header) => ["count", "counter", "total"].includes(header));
+      if (nameIndex < 0) throw new Error('Could not find a name column. Use a header called "Name".');
+      const currentByName = new Map(names.map((person) => [person.name.trim().toLowerCase(), person.counter]));
+      const imported = [];
+      const seen = new Set();
+      for (let i = 1; i < rows.length; i += 1) {
+        const row = rows[i];
+        const name = (row[nameIndex] || "").trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (seen.has(key)) throw new Error(`Duplicate name "${name}" on CSV row ${i + 1}. Names must be unique.`);
+        seen.add(key);
+        let counter = currentByName.get(key) ?? 0;
+        if (countIndex >= 0 && (row[countIndex] || "").trim() !== "") {
+          const rawCount = (row[countIndex] || "").trim();
+          if (!/^\d+$/.test(rawCount)) throw new Error(`Count for "${name}" on CSV row ${i + 1} must be a whole number zero or greater.`);
+          counter = Number(rawCount);
+          if (!Number.isSafeInteger(counter)) throw new Error(`Count for "${name}" is too large.`);
+        } else if (countIndex >= 0) {
+          counter = 0;
+        }
+        imported.push({ name, counter });
+      }
+      if (!imported.length) throw new Error("No users with names were found in the CSV.");
+      setNames(imported);
+      setNotice({ type: "success", text: `Imported ${imported.length} user${imported.length === 1 ? "" : "s"}. The CSV is now the complete list; users not in the file were removed.` });
+    } catch (error) {
+      setNotice({ type: "error", text: error instanceof Error ? error.message : "Unable to read this CSV file." });
+    } finally {
+      setBusy(false);
+      event.target.value = "";
     }
   };
 
-  const handleDeleteName = (index) => {
-    setNames(names.filter((_, i) => i !== index));
+  const changeCounter = (index, delta) => {
+    setNames((current) => current.map((person, i) => i === index ? { ...person, counter: Math.max(0, person.counter + delta) } : person));
   };
-
-  const handleIncrementCounter = (index) => {
-    const newNames = [...names];
-    newNames[index].counter += 1;
-    setNames(newNames);
+  const deletePerson = (index) => {
+    const person = names[index];
+    setNames((current) => current.filter((_, i) => i !== index));
+    setNotice({ type: "success", text: `Removed ${person.name}.` });
   };
-
-  const handleDecrementCounter = (index) => {
-    const newNames = [...names];
-    if (newNames[index].counter > 0) {
-      newNames[index].counter -= 1;
-      setNames(newNames);
+  const resetCounts = () => {
+    if (window.confirm("Reset every person's count to zero? This cannot be undone.")) {
+      setNames((current) => current.map((person) => ({ ...person, counter: 0 })));
+      setNotice({ type: "success", text: "All counts have been reset." });
     }
   };
 
   return (
-    <div className="container">
-      <div className="form">
-        <input
-          type="text"
-          value={nameInput}
-          onChange={(e) => setNameInput(e.target.value)}
-          placeholder="Enter a name"
-        />
-        <button onClick={handleAddName}>Add Name</button>
-      </div>
-      <div className="names-list">
-        {names.map((item, index) => (
-          <div key={index} className="name-item">
-            <span>{item.name}</span>
-              <span>{item.counter}</span>
-            <div className="counter-controls">
-              <button onClick={() => handleIncrementCounter(index)}>+</button>
-              <button onClick={() => handleDecrementCounter(index)}>-</button>
-            <button onClick={() => handleDeleteName(index)}>Delete</button>
-            </div>
+    <main className="app-shell">
+      <header className="page-header">
+        <div className="brand-mark" aria-hidden="true">SC</div>
+        <div className="heading-copy">
+          <p className="eyebrow">SIMPLE · LOCAL · PRIVATE</p>
+          <h1>SelfServ <span>Counter</span></h1>
+          <p className="subtitle">Keep track of people and their counts in one place.</p>
+        </div>
+        <div className="saved-indicator"><span className="status-dot" /> Saved in this browser</div>
+      </header>
+
+      <section className="stats-row" aria-label="List summary">
+        <div className="stat-card"><span className="stat-label">People on list</span><strong>{names.length}</strong></div>
+        <div className="stat-card"><span className="stat-label">Combined count</span><strong>{total.toLocaleString()}</strong></div>
+        <div className="stat-card"><span className="stat-label">Storage</span><strong className="storage-value">Local device</strong></div>
+      </section>
+
+      <section className="panel import-panel">
+        <div className="section-heading">
+          <div><p className="eyebrow">BULK UPDATE</p><h2>Import users from CSV</h2></div>
+          <button className="button button-secondary" onClick={downloadExample} type="button">Download example CSV</button>
+        </div>
+        <p className="help-copy">Upload a CSV to replace the displayed list with its users. Existing counts are kept for matching names if you leave out the Count column. If Count is included, those values update the counts. Anyone not in the CSV is removed.</p>
+        <div className="upload-row">
+          <label className="file-picker">
+            <span aria-hidden="true">↑</span> {busy ? "Reading CSV…" : "Choose CSV file"}
+            <input ref={fileInput} type="file" accept=".csv,text/csv" onChange={handleImport} disabled={busy} />
+          </label>
+          <span className="file-hint">.csv files only · Nothing is uploaded to a server</span>
+        </div>
+        <details className="csv-help">
+          <summary>How should I format the CSV?</summary>
+          <div className="help-details">
+            <p><strong>Required:</strong> a header row with a <code>Name</code> column. Optional count headers: <code>Count</code>, <code>Counter</code>, or <code>Total</code>.</p>
+            <pre>{'Name,Count\nAlice,12\nBob,7\nCharlie,3'}</pre>
+            <ul>
+              <li>Save the spreadsheet as <strong>CSV UTF-8 (Comma delimited)</strong>.</li>
+              <li>Each person should appear once; duplicate names are rejected.</li>
+              <li>Counts must be whole numbers of zero or greater.</li>
+              <li>Names match case-insensitively when keeping existing counts (for example, “Alice” and “ALICE”).</li>
+              <li>Review the list before importing: the CSV becomes the full list.</li>
+            </ul>
           </div>
-        ))}
-      </div>
-    </div>
+        </details>
+      </section>
+
+      {notice.text && <div className={`notice notice-${notice.type || "success"}`} role="status">{notice.text}</div>}
+
+      <section className="panel people-panel">
+        <div className="section-heading people-heading">
+          <div><p className="eyebrow">YOUR LIST</p><h2>People <span className="count-pill">{names.length}</span></h2></div>
+          <div className="search-wrap"><span aria-hidden="true">⌕</span><input aria-label="Search people" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search names…" /></div>
+        </div>
+        <form className="add-form" onSubmit={(event) => { event.preventDefault(); handleAddName(); }}>
+          <input aria-label="New person's name" value={nameInput} onChange={(event) => setNameInput(event.target.value)} placeholder="Enter a person's name…" maxLength={100} />
+          <button className="button button-primary" type="submit">+ Add person</button>
+        </form>
+        {filteredNames.length === 0 ? (
+          <div className="empty-state"><span aria-hidden="true">◎</span><h3>{names.length ? "No matching people" : "Your list is empty"}</h3><p>{names.length ? "Try a different search." : "Add a person above or import a CSV to get started."}</p></div>
+        ) : (
+          <div className="people-grid">
+            {filteredNames.map((person) => {
+              const index = names.indexOf(person);
+              return <article className="person-card" key={person.name.toLowerCase()}>
+                <div className="person-top"><div className="avatar">{person.name.trim().charAt(0).toUpperCase()}</div><div className="person-name" title={person.name}>{person.name}</div><button className="icon-button delete-button" aria-label={`Delete ${person.name}`} title="Remove person" onClick={() => deletePerson(index)} type="button">×</button></div>
+                <div className="counter-display"><span>Current count</span><strong>{person.counter.toLocaleString()}</strong></div>
+                <div className="counter-controls"><button className="counter-button decrement" aria-label={`Decrease ${person.name} count`} onClick={() => changeCounter(index, -1)} disabled={person.counter === 0} type="button">−</button><button className="counter-button increment" aria-label={`Increase ${person.name} count`} onClick={() => changeCounter(index, 1)} type="button">+</button></div>
+              </article>;
+            })}
+          </div>
+        )}
+        <div className="list-footer"><span>Changes save automatically in this browser.</span><button className="text-button" type="button" onClick={resetCounts}>Reset all counts</button></div>
+      </section>
+      <footer className="page-footer">SelfServ Counter <span>·</span> Your list stays in this browser, not on a server.</footer>
+    </main>
   );
 }
