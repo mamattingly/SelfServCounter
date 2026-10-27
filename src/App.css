@@ -137,6 +137,13 @@ pre { overflow-x: auto; width: fit-content; max-width: 100%; margin: 10px 0; pad
 .section-tool { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:31px; padding:6px 9px; border:1px solid #30384a; border-radius:8px; color:#aab5ca; background:#171d29; font-size:11px; font-weight:650; white-space:nowrap; }
 .section-tool:hover:not(:disabled) { border-color:#5867c6; color:#e0e4ff; background:#222a3d; }
 .section-tool:disabled { opacity:.3; cursor:not-allowed; }
+.drag-handle { cursor:grab; border-style:dashed; }
+.drag-handle:active { cursor:grabbing; }
+.hide-section { color:#f1b0b0; }
+.hidden-sections { display:flex; align-items:center; flex-wrap:wrap; gap:9px; margin:0 0 18px; padding:13px 15px; border:1px dashed #3a4358; border-radius:12px; background:#101520; }
+.hidden-sections strong { color:#e5e9f5; font-size:12px; }
+.hidden-sections > span { color:#929bb0; font-size:11px; margin-right:4px; }
+.restore-section { color:#b8c2ff; border-color:#4c568b; }
 .dashboard-section > .stats-row { margin:0; }
 .dashboard-section .section-heading { align-items:flex-start; }
 .dashboard-section .help-copy { margin-bottom:0; }
