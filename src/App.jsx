@@ -97,16 +97,10 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (!authUser) return undefined;
-    let socket, retryTimer, closed = false;
-    const connect = () => {
-      if (closed) return;
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      socket = new WebSocket(protocol + "//" + window.location.host + "/ws");
-      socket.onmessage = event => { try { const message = JSON.parse(event.data); if (message.type === "people") setNames(message.people); } catch {} };
-      socket.onclose = () => { if (!closed) retryTimer = window.setTimeout(() => { refreshPeople().catch(()=>{}); connect(); }, 2000); };
-    };
-    connect();
-    return () => { closed = true; window.clearTimeout(retryTimer); socket?.close(); };
+    const events = new EventSource("/api/events");
+    events.onmessage = event => { try { const message = JSON.parse(event.data); if (message.type === "people") setNames(message.people); } catch {} };
+    events.onerror = () => { refreshPeople().catch(()=>{}); };
+    return () => events.close();
   }, [authUser?.id]);
   useEffect(() => {
     if (userAdminOpen && authUser?.role === "admin") api("/api/users").then(data => setAccounts(data.users)).catch(error => setNotice({ type: "error", text: error.message }));
