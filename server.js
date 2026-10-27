@@ -46,11 +46,9 @@ async function initDb() {
     console.log("Created initial administrator account from environment variables.");
   }
 }
-const sockets = new Set();
 const eventClients = new Map();
 function broadcast(message) {
   const payload = JSON.stringify(message);
-  for (const ws of sockets) if (ws.readyState === 1) ws.send(payload);
   for (const res of eventClients.keys()) { try { res.write("data: " + payload + "\n\n"); } catch { eventClients.delete(res); } }
 }
 app.get("/api/events", requireAuth, async (req,res) => {
@@ -93,7 +91,7 @@ app.post("/api/login", async (req,res) => {
   if (email.length > 254 || password.length > 1024) return res.status(400).json({ error: "Invalid email or password." });
   const { rows } = await pool.query("SELECT id,email,password_hash,role FROM app_users WHERE email=$1", [email]);
   const user = rows[0];
-  const valid = user ? await bcrypt.compare(password, user.password_hash) : await bcrypt.compare(password, "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinvalid");
+  const valid = user ? await bcrypt.compare(password, user.password_hash) : await bcrypt.compare(password, "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
   if (!user || !valid) return res.status(401).json({ error: "Email or password is incorrect." });
   req.session.regenerate(err => {
     if (err) return res.status(500).json({ error: "Unable to start session." });
