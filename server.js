@@ -51,7 +51,7 @@ const eventClients = new Map();
 function broadcast(message) {
   const payload = JSON.stringify(message);
   for (const ws of sockets) if (ws.readyState === 1) ws.send(payload);
-  for (const res of eventClients.keys()) { try { res.write("data: " + payload + "\\n\\n"); } catch { eventClients.delete(res); } }
+  for (const res of eventClients.keys()) { try { res.write("data: " + payload + "\n\n"); } catch { eventClients.delete(res); } }
 }
 app.get("/api/events", requireAuth, async (req,res) => {
   res.setHeader("Content-Type", "text/event-stream");
@@ -59,7 +59,7 @@ app.get("/api/events", requireAuth, async (req,res) => {
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders?.();
   eventClients.set(res, Number(req.user.id));
-  res.write("data: " + JSON.stringify({type:"people", people: await getPeople()}) + "\\n\\n");
+  res.write("data: " + JSON.stringify({type:"people", people: await getPeople()}) + "\n\n");
   req.on("close", () => eventClients.delete(res));
 });
 async function getPeople() {
