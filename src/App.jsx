@@ -135,17 +135,34 @@ export default function App() {
   const moveSectionBefore = (source, target) => setDashboardLayout((current) => { if (!SECTION_IDS.includes(source) || !SECTION_IDS.includes(target) || source === target) return current; const order = [...current.order]; order.splice(order.indexOf(source), 1); order.splice(order.indexOf(target), 0, source); return { ...current, order }; });
   const sectionTools = (id, label) => <div className="section-tools"><button className="section-tool drag-handle" type="button" draggable="true" aria-label={`Drag to move ${label}`} title="Drag this section to reorder" onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", id); }}>⠿ Drag</button><button className="section-tool" type="button" aria-label={`Move ${label} up`} title="Move section up" disabled={dashboardLayout.order.indexOf(id) === 0} onClick={() => moveSection(id, -1)}>↑ Up</button><button className="section-tool" type="button" aria-label={`Move ${label} down`} title="Move section down" disabled={dashboardLayout.order.indexOf(id) === SECTION_IDS.length - 1} onClick={() => moveSection(id, 1)}>↓ Down</button><button className="section-tool" type="button" aria-expanded={!dashboardLayout.collapsed[id]} onClick={() => toggleSection(id)}>{dashboardLayout.collapsed[id] ? "＋ Expand" : "− Collapse"}</button><button className="section-tool hide-section" type="button" onClick={() => toggleHidden(id)}>Hide</button></div>;
   const filteredNames = useMemo(() => names.filter((person) => person.name.toLowerCase().includes(search.trim().toLowerCase())), [names, search]);
+  const submitLogin = async (event) => {
+    event.preventDefault(); setLoginBusy(true); setNotice({ type: "", text: "" });
+    try { const data = await api("/api/login", { method: "POST", body: JSON.stringify({ email: loginEmail, password: loginPassword }) }); setAuthUser(data.user); setLoginPassword(""); }
+    catch (error) { setNotice({ type: "error", text: error.message }); } finally { setLoginBusy(false); }
+  };
+  const signOut = async () => { try { await api("/api/logout", { method: "POST", body: "{}" }); } catch {} setAuthUser(null); setNames([]); setUserAdminOpen(false); };
+  const createAccount = async (event) => {
+    event.preventDefault();
+    try { await api("/api/users", { method: "POST", body: JSON.stringify({ email: accountEmail, password: accountPassword, role: accountRole }) }); setAccountEmail(""); setAccountPassword(""); const data = await api("/api/users"); setAccounts(data.users); setNotice({ type: "success", text: "Account created." }); }
+    catch (error) { setNotice({ type: "error", text: error.message }); }
+  };
+  const removeAccount = async (id) => {
+    if (!window.confirm("Delete this account?")) return;
+    try { await api("/api/users/" + id, { method: "DELETE" }); setAccounts(current => current.filter(account => account.id !== id)); }
+    catch (error) { setNotice({ type: "error", text: error.message }); }
+  };
+  if (authUser === undefined) return <main className="auth-shell"><div className="auth-card"><div className="brand-mark">SC</div><h1>SelfServ <span>Counter</span></h1><p>Checking sign-in…</p></div></main>;
+  if (!authUser) return <main className="auth-shell"><form className="auth-card" onSubmit={submitLogin}><div className="brand-mark">SC</div><p className="eyebrow">SECURE WORKSPACE</p><h1>SelfServ <span>Counter</span></h1><p className="subtitle">Sign in to view shared counts.</p><label>Email address<input type="email" autoComplete="username" required value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} /></label><label>Password<input type="password" autoComplete="current-password" required value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} /></label><button className="button button-primary" type="submit" disabled={loginBusy}>{loginBusy ? "Signing in…" : "Sign in"}</button>{notice.text && <p className={"notice notice-" + (notice.type || "success")}>{notice.text}</p>}</form></main>;
   const personColor = (person) => chartColors[names.indexOf(person) % chartColors.length];
 
-  const handleAddName = () => {
+  const handleAddName = async () => {
     const name = nameInput.trim();
     if (!name) return;
     if (names.some((person) => person.name.toLowerCase() === name.toLowerCase())) {
       setNotice({ type: "error", text: "That name is already on the list." }); return;
     }
-    setNames((current) => [...current, { name, counter: 0 }]);
+    await performAction({ type: "add", name });
     setNameInput("");
-    setNotice({ type: "success", text: `Added ${name}.` });
   };
 
   const handleImport = async (event) => {
@@ -181,8 +198,8 @@ export default function App() {
         imported.push({ name, counter });
       }
       if (!imported.length) throw new Error("No users with names were found in the CSV.");
-      setNames(imported);
-      setNotice({ type: "success", text: `Imported ${imported.length} user${imported.length === 1 ? "" : "s"}. The CSV is now the complete list; users not in the file were removed.` });
+      await performAction({ type: "replace", people: imported });
+      setNotice({ type: "success", text: `Imported ${imported.length} users to the shared list.` });
     } catch (error) {
       setNotice({ type: "error", text: error instanceof Error ? error.message : "Unable to read this CSV file." });
     } finally {
@@ -191,18 +208,11 @@ export default function App() {
     }
   };
 
-  const changeCounter = (index, delta) => {
-    setNames((current) => current.map((person, i) => i === index ? { ...person, counter: Math.max(0, person.counter + delta) } : person));
-  };
-  const deletePerson = (index) => {
-    const person = names[index];
-    setNames((current) => current.filter((_, i) => i !== index));
-    setNotice({ type: "success", text: `Removed ${person.name}.` });
-  };
+  const changeCounter = (index, delta) => { const person = names[index]; if (person) performAction({ type: delta > 0 ? "increment" : "decrement", name: person.name }); };
+  const deletePerson = (index) => { const person = names[index]; if (person && window.confirm(`Remove ${person.name} from the shared list?`)) performAction({ type: "delete", name: person.name }); };
   const resetCounts = () => {
     if (window.confirm("Reset every person's count to zero? This cannot be undone.")) {
-      setNames((current) => current.map((person) => ({ ...person, counter: 0 })));
-      setNotice({ type: "success", text: "All counts have been reset." });
+      performAction({ type: "reset" });
     }
   };
 
