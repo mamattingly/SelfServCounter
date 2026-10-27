@@ -6,7 +6,6 @@ import bcrypt from "bcryptjs";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomBytes, timingSafeEqual } from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -21,7 +20,7 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET, resave: false, saveUninitialized: false,
   cookie: { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", maxAge: 1000 * 60 * 60 * 12 },
 });
-app.use(express.json({ limit: "1mb" }));
+app.set("trust proxy", 1);\napp.use(express.json({ limit: "1mb" }));
 app.use(sessionMiddleware);
 app.use((req, res, next) => { res.setHeader("X-Content-Type-Options", "nosniff"); res.setHeader("X-Frame-Options", "DENY"); res.setHeader("Referrer-Policy", "same-origin"); next(); });
 
@@ -47,18 +46,18 @@ async function initDb() {
   }
 }
 const sockets = new Set();
-const eventClients = new Set();
+const eventClients = new Map();
 function broadcast(message) {
   const payload = JSON.stringify(message);
   for (const ws of sockets) if (ws.readyState === 1) ws.send(payload);
-  for (const res of eventClients) { try { res.write("data: " + payload + "\\n\\n"); } catch { eventClients.delete(res); } }
+  for (const res of eventClients.keys()) { try { res.write("data: " + payload + "\\n\\n"); } catch { eventClients.delete(res); } }
 }
 app.get("/api/events", requireAuth, async (req,res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders?.();
-  eventClients.add(res);
+  eventClients.set(res, Number(req.user.id));
   res.write("data: " + JSON.stringify({type:"people", people: await getPeople()}) + "\\n\\n");
   req.on("close", () => eventClients.delete(res));
 });
