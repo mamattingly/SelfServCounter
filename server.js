@@ -3,7 +3,6 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import pg from "pg";
 import bcrypt from "bcryptjs";
-import { WebSocketServer } from "ws";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,10 +47,21 @@ async function initDb() {
   }
 }
 const sockets = new Set();
+const eventClients = new Set();
 function broadcast(message) {
   const payload = JSON.stringify(message);
   for (const ws of sockets) if (ws.readyState === 1) ws.send(payload);
+  for (const res of eventClients) { try { res.write("data: " + payload + "\\n\\n"); } catch { eventClients.delete(res); } }
 }
+app.get("/api/events", requireAuth, async (req,res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+  eventClients.add(res);
+  res.write("data: " + JSON.stringify({type:"people", people: await getPeople()}) + "\\n\\n");
+  req.on("close", () => eventClients.delete(res));
+});
 async function getPeople() {
   const { rows } = await pool.query("SELECT name, counter FROM people ORDER BY position, id");
   return rows.map(p => ({ name: p.name, counter: p.counter }));
@@ -167,21 +177,6 @@ app.use(express.static(dist, { index: false }));
 app.get("*", (req,res,next) => {
   if (req.path.startsWith("/api/")) return res.status(404).json({ error: "API route not found." });
   res.sendFile(path.join(dist,"index.html"), err => err && next(err));
-});
-const wss = new WebSocketServer({ noServer: true });
-server.on("upgrade", (request,socket,head) => {
-  if (request.url !== "/ws") return socket.destroy();
-  sessionMiddleware(request, {}, async () => {
-    if (!request.session?.user) return socket.destroy();
-    const { rows } = await pool.query("SELECT id FROM app_users WHERE id=$1", [request.session.user.id]).catch(()=>({rows:[]}));
-    if (!rows.length) return socket.destroy();
-    wss.handleUpgrade(request,socket,head,ws => wss.emit("connection",ws,request));
-  });
-});
-wss.on("connection", ws => {
-  sockets.add(ws);
-  getPeople().then(people => ws.readyState === 1 && ws.send(JSON.stringify({type:"people",people}))).catch(()=>{});
-  ws.on("close",()=>sockets.delete(ws));
 });
 const port = Number(process.env.PORT || 10000);
 await initDb();
