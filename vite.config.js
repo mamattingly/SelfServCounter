@@ -9,9 +9,12 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Mike's Password Generator",
-        short_name: "Mike's Password Generator",
-        theme_color: "#000000",
+        name: "SelfServ Counter",
+        short_name: "SelfServ Counter",
+        theme_color: "#20243b",
+        background_color: "#111321",
+        description: "A simple, private people counter with CSV import and browser-based saving.",
+        display: "standalone",
         icons: [
           {
             src: "/favicon.png",
