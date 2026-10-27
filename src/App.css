@@ -121,3 +121,40 @@ pre { overflow-x: auto; width: fit-content; max-width: 100%; margin: 10px 0; pad
   .person-name { font-size: 12px; }
   .list-footer { align-items: flex-start; flex-direction: column; gap: 5px; }
 }
+
+
+/* Dashboard layout controls */
+.dashboard-intro { display:flex; align-items:center; justify-content:space-between; gap:18px; margin:0 0 18px; padding:0 2px; }
+.dashboard-intro h2 { font-size:22px; margin:0 0 5px; }
+.dashboard-intro p:last-child { margin:0; max-width:700px; color:#8d98ad; font-size:12px; line-height:1.6; }
+.dashboard-sections { display:flex; flex-direction:column; gap:18px; }
+.dashboard-section { min-width:0; position:relative; }
+.dashboard-section.panel { margin:0; }
+.dashboard-section-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
+.dashboard-section-header h2 { margin:0; }
+.dashboard-section-header .eyebrow { margin-bottom:5px; }
+.section-tools { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.section-tool { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:31px; padding:6px 9px; border:1px solid #30384a; border-radius:8px; color:#aab5ca; background:#171d29; font-size:11px; font-weight:650; white-space:nowrap; }
+.section-tool:hover:not(:disabled) { border-color:#5867c6; color:#e0e4ff; background:#222a3d; }
+.section-tool:disabled { opacity:.3; cursor:not-allowed; }
+.dashboard-section > .stats-row { margin:0; }
+.dashboard-section .section-heading { align-items:flex-start; }
+.dashboard-section .help-copy { margin-bottom:0; }
+.dashboard-section .section-heading > .button { flex-shrink:0; }
+.people-toolbar { display:flex; justify-content:flex-end; margin-bottom:12px; }
+.people-toolbar .search-wrap { width:min(280px,100%); }
+.dashboard-section .add-form { margin-bottom:18px; }
+.reset-layout { flex-shrink:0; }
+@media (max-width:640px) {
+ .dashboard-intro { align-items:flex-start; }
+ .dashboard-intro h2 { font-size:19px; }
+ .dashboard-intro p:last-child { max-width:230px; }
+ .reset-layout { padding:8px 9px; font-size:10px; }
+ .dashboard-section-header { align-items:flex-start; gap:8px; }
+ .section-tools { gap:4px; }
+ .section-tool { min-height:29px; padding:5px 7px; font-size:10px; }
+ .dashboard-section .section-heading { align-items:flex-start; flex-wrap:wrap; }
+ .dashboard-section .section-heading > .button { width:100%; }
+ .people-toolbar { justify-content:stretch; }
+ .people-toolbar .search-wrap { width:100%; }
+}
