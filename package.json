@@ -1,5 +1,5 @@
 {
-  "name": "password-pwa",
+  "name": "selfserv-counter",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,11 +7,18 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "bcryptjs": "^2.4.3",
+    "connect-pg-simple": "^10.0.0",
+    "express": "^4.21.2",
+    "express-session": "^1.18.1",
+    "pg": "^8.13.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",
